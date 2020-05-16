@@ -1,83 +1,60 @@
-from flask import jsonify
-from dao.administrator import AdministratorDAO
+from config.dbconfig import pg_config
+import psycopg2
 
+# This is the way I can login to the database
+# conn = psycopg2.connect("dbname=p1 user=DongWang password=wangdong host =127.0.0.1")
 
-class AdministratorHandler:
-    def build_administrator_dict(self, row):
-        result = {}
-        result['admin_id'] = row[0]
-        result['uid'] = row[1]
-        result['created_at'] = row[2]
+class AdministratorDAO:
+    def __init__(self):
+        connection_url = "dbname=%s user=%s password=%s host=127.0.0.1" % \
+                         (pg_config['dbname'], pg_config['user'], pg_config['passwd'])
+        self.conn = psycopg2._connect(connection_url)
+
+    def getAllAdministrators(self):
+        cursor = self.conn.cursor()
+        query = "select * from administrator;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
         return result
 
 
-    def getAllAdministrators(self):
-        dao = AdministratorDAO()
-        administrators_list = dao.getAllAdministrators()
-        result_list = []
-        for row in administrators_list:
-            result = self.build_administrator_dict(row)
-            result_list.append(result)
-        return jsonify(Administrators=result_list)
-
-    def getAdministratorById(self, cid):
-        dao = AdministratorDAO()
-        row = dao.getAdministratorById(cid)
-        if not row:
-            return jsonify(Error="Administrator Not Found"), 404
-        else:
-            part = self.build_administrator_dict(row)
-        return jsonify(Administrator_id=part)
+    def getAdministratorById(self, adid):
+        cursor = self.conn.cursor()
+        query = "select * from administrator where admin_id = %s;"
+        cursor.execute(query, (adid,))
+        result = cursor.fetchone()
+        return result
 
     def getLatestAdministrator(self):
-        dao = AdministratorDAO()
-        row = dao.getLatestAdministrator()
-        if not row:
-            return jsonify(Error="Latest Administrator Not Found"), 404
-        else:
-            part = self.build_administrator_dict(row)
-        return jsonify(LatestAdministrator=part)
+        cursor = self.conn.cursor()
+        query = "SELECT * FROM administrator ORDER BY created_at DESC LIMIT 1"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return result
 
+    ############## Phase 3 ######################
 
-    def insertAdministrator(self, form):
-        if form and len(form) == 7:
-            uid = form['uid']
-            category = form['category']
-            first_name = form['first_name']
-            last_name = form['last_name']
-            payment_method = form['payment_method']
-            address = form['address']
-            phone = form['phone']
-            if uid and category and first_name and last_name\
-                    and payment_method and address and phone:
-                dao = AdministratorDAO()
-                sid = dao.insertAdministrator(uid, category, first_name, last_name
-                                 /payment_method, address, phone)
-                result = {}
-                result['sid'] = sid
-                result['uid'] = uid
-                result['category'] = category
-                result['first_name'] = first_name
-                result['last_name'] = last_name
-                result['payment_method'] = payment_method
-                result['address'] = address
-                result['phone'] = phone
-                return jsonify(Customers=result), 201
-            else:
-                return jsonify(Error="Malformed post request")
-        else:
-            return jsonify(Error="Malformed post request")
+    def insertAdmin(self, uid, admin_name):
+        cursor = self.conn.cursor()
+        query = "insert into administrator(uid, admin_name) values (%s, %s) returning admin_id;"
+        cursor.execute(query, (uid, admin_name,))
+        admin_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return admin_id
 
-    def searchAdministrator(self, args):
-        return -1
-    #     if len(args) > 1:
-    #         return jsonify(Error="Malformed search string."), 400
-    #     else:
-    #         # phone = args.get("phone")
-    #         if phone:
-    #             dao = AdministratorDAO()
-    #             # customer_list = dao.getustomerByPhone(phone)
-    #             result_list = []
-    #         else:
-    #             return jsonify(Error="Malformed search string."), 400
+    def update(self, said, uid, sausername):
+        cursor = self.conn.cursor()
+        query = "update sys_adm set uid = %s, sausername = %s where said = %s;"
+        cursor.execute(query, (uid, sausername, said,))
+        self.conn.commit()
+        return said
+
+    def delete(self, said):
+        cursor = self.conn.cursor()
+        query = "delete from sys_adm where said = %s;"
+        cursor.execute(query, (said,))
+        self.conn.commit()
+        return said
 

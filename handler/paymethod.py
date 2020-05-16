@@ -1,120 +1,77 @@
-from flask import jsonify
-from dao.paymethod import PayMethodDAO
+from config.dbconfig import pg_config
+import psycopg2
 
-class PayMethodHandler:
-    def build_pay_dict(self, row):
-        result = {}
-        result['pay_id'] = row[0]
-        result['card_no'] = row[1]
-        result['first_name'] = row[2]
-        result['last_name'] = row[3]
-        result['exp_date'] = row[4]
-        result['consumer_id'] = row[5]
-        return result
 
-    def build_consumer_dict(self, row):
-        result = {}
-        result['consid'] = row[0]
-        result['consusername'] = row[1]
-        return result
+class PayMethodDAO:
+    def __init__(self):
 
-    def build_supplier_dict(self, row):
-        result = {}
-        result['sid'] = row[0]
-        result['susername'] = row[1]
-        result['sccompany'] = row[2]
-        return result
-
-    def build_payment_attributes(self, pmid, pmname):
-        result = {}
-        result['pmid'] = pmid
-        result['pmname'] = pmname
-        return result
+        connection_url = "dbname=%s user=%s password=%s" % (pg_config['dbname'],
+                                                            pg_config['user'],
+                                                            pg_config['passwd'])
+        self.conn = psycopg2._connect(connection_url)
 
     def getAllPayMethod(self):
-        dao = PayMethodDAO()
-        payment_list = dao.getAllPayMethod()
-        result_list = []
-        for row in payment_list:
-            result = self.build_pay_dict(row)
-            result_list.append(result)
-        return jsonify(PayMethod=result_list)
+        cursor = self.conn.cursor()
+        query = "select * from paymethod;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getPayMethodById(self, payid):
-        dao = PayMethodDAO()
-        row = dao.getPayMethodById(payid)
-        if not row:
-            return jsonify(Error="Payment Not Found"), 404
-        else:
-            order = self.build_pay_dict(row)
-        return jsonify(PayMethod=order)
+        cursor = self.conn.cursor()
+        query = "select * from paymethod where pay_id = %s;"
+        cursor.execute(query, (payid,))
+        result = cursor.fetchone()
+        return result
 
-    def searchPayMethod(self, args):
-        pmname = args.get('pmname')
-        dao = PayMethodDAO()
-        payment_list = []
-        if (len(args) == 1) and pmname:
-            payment_list = dao.getPayMethodByName(pmname)
-        else:
-            return jsonify(Error="Malformed query string"), 400
-        result_list = []
-        for row in payment_list:
-            result = self.build_payment_dict(row)
-            result_list.append(result)
-        return jsonify(PayMethod=result_list)
+    def getPayMethodByName(self, pmname):
+        cursor = self.conn.cursor()
+        query = "select * from pay_method where pmname = %s;"
+        cursor.execute(query, (pmname,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getConsumerByPayMethodId(self, pmid):
-        dao = PayMethodDAO()
-        if not dao.getPayMethodById(pmid):
-            return jsonify(Error="Payment Not Found"), 404
-        consumer_list = dao.getConsumerByPayMethodId(pmid)
-        result_list = []
-        for row in consumer_list:
-            result = self.build_consumer_dict(row)
-            result_list.append(result)
-        return jsonify(PayMethod=result_list)
+        cursor = self.conn.cursor()
+        query = "select consid, consusername from consumer natural inner join pay_method where pmid = %s;"
+        cursor.execute(query, (pmid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getSupplierByPayMethodId(self, pmid):
-        dao = PayMethodDAO()
-        if not dao.getPayMethodById(pmid):
-            return jsonify(Error="Payment Not Found"), 404
-        supplier_list = dao.getSupplierByPayMethodId(pmid)
-        result_list = []
-        for row in supplier_list:
-            result = self.build_supplier_dict(row)
-            result_list.append(result)
-        return jsonify(PayMethod=result_list)
+        cursor = self.conn.cursor()
+        query = "select sid, susername, scompany from supplier natural inner join pay_method where pmid = %s;"
+        cursor.execute(query, (pmid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
-    def insertPayMethodJson(self, json):
-        pmname = json['pmname']
-        if pmname:
-            dao = PayMethodDAO()
-            pmid = dao.insert(pmname)
-            result = self.build_payment_attributes(pmid, pmname)
-            return jsonify(PayMethod=result), 201
-        else:
-            return jsonify(Error="Unexpected attributes in post request"), 400
+    def insert(self, card_no, first_name, last_name, exp_date, consumer_id):
+        cursor = self.conn.cursor()
+        query = "insert into paymethod(card_no, first_name, last_name, exp_date, consumer_id) " \
+                "values (%s, %s, %s, %s, %s) returning pay_id;"
+        cursor.execute(query, (card_no, first_name, last_name, exp_date, consumer_id,))
+        pay_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return pay_id
 
-    def updatePayMethod(self, pmid, form):
-        dao = PayMethodDAO()
-        if not dao.getPayMethodById(pmid):
-            return jsonify(Error="Payment not found."), 404
-        else:
-            if len(form) != 1:
-                return jsonify(Error="Malformed update request"), 400
-            else:
-                pmname = form['pmname']
-                if pmname:
-                    dao.update(pmid, pmname)
-                    result = self.build_payment_attributes(pmid, pmname)
-                    return jsonify(PayMethod=result), 200
-                else:
-                    return jsonify(Error="Unexpected attributes in update request"), 400
+    def update(self, pmid, pmname):
+        cursor = self.conn.cursor()
+        query = "update pay_method set pmname = %s where pmid = %s;"
+        cursor.execute(query, (pmname, pmid,))
+        self.conn.commit()
+        return pmid
 
-    def deletePayMethod(self, pmid):
-        dao = PayMethodDAO()
-        if not dao.getPayMethodById(pmid):
-            return jsonify(Error="Payment not found."), 404
-        else:
-            dao.delete(pmid)
-            return jsonify(DeleteStatus="OK"), 200
+    def delete(self, pmid):
+        cursor = self.conn.cursor()
+        query = "delete from pay_method where pmid = %s;"
+        cursor.execute(query, (pmid,))
+        self.conn.commit()
+        return pmid

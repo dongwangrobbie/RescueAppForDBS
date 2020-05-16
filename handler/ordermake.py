@@ -1,143 +1,92 @@
-from flask import jsonify
-from dao.ordermake import OrderDAO
+from config.dbconfig import pg_config
+import psycopg2
 
-class OrderHandler:
-    def build_order_dict(self, row):
-        result = {}
-        result['ord_id'] = row[0]
-        result['req_id'] = row[1]
-        result['created_at'] = row[2]
-        return result
 
-    def build_consumer_dict(self, row):
-        result = {}
-        result['consid'] = row[0]
-        result['consusername'] = row[1]
-        return result
+class OrderDAO:
+    def __init__(self):
 
-    def build_reservation_dict(self, row):
-        result = {}
-        result['resid'] = row[0]
-        result['restime'] = row[1]
-        return result
-
-    def build_supplier_dict(self, row):
-        result = {}
-        result['sid'] = row[0]
-        result['susername'] = row[1]
-        result['sccompany'] = row[2]
-        return result
-
-    def build_order_attributes(self, odid, odnumber):
-        result = {}
-        result['odid'] = odid
-        result['odnumber'] = odnumber
-        return result
+        connection_url = "dbname=%s user=%s password=%s" % (pg_config['dbname'],
+                                                            pg_config['user'],
+                                                            pg_config['passwd'])
+        self.conn = psycopg2._connect(connection_url)
 
     def getAllOrder(self):
-        dao = OrderDAO()
-        order_list = dao.getAllOrder()
-        result_list = []
-        for row in order_list:
-            result = self.build_order_dict(row)
-            result_list.append(result)
-        return jsonify(Order=result_list)
+        cursor = self.conn.cursor()
+        query = "select * from ordermake;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getOrderById(self, ordid):
-        dao = OrderDAO()
-        row = dao.getOrderById(ordid)
-        if not row:
-            return jsonify(Error="Order Not Found"), 404
-        else:
-            order = self.build_order_dict(row)
-        return jsonify(Order=order)
+        cursor = self.conn.cursor()
+        query = "select * from ordermake where ord_id = %s;"
+        cursor.execute(query, (ordid,))
+        result = cursor.fetchone()
+        return result
 
     def getLatestOrder(self):
-        dao = OrderDAO()
-        row = dao.getLatestOrder()
-        if not row:
-            return jsonify(Error="Latest Order Not Found"), 404
-        else:
-            part = self.build_order_dict(row)
-        return jsonify(LatestOrder=part)
+        cursor = self.conn.cursor()
+        query = "SELECT * FROM ordermake ORDER BY created_at DESC LIMIT 1"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return result
 
-    def searchOrder(self, args):
-        odnumber = args.get('odnumber')
-        dao = OrderDAO()
-        order_list = []
-        if (len(args) == 1) and odnumber:
-            order_list = dao.getOrderByNumber(odnumber)
-        else:
-            return jsonify(Error="Malformed query string"), 400
-        result_list = []
-        for row in order_list:
-            result = self.build_order_dict(row)
-            result_list.append(result)
-        return jsonify(Order=result_list)
+    def getOrderByNumber(self, odnumber):
+        cursor = self.conn.cursor()
+        query = "select * from orders where odnumber = %s;"
+        cursor.execute(query, (odnumber,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getConsumerByOrderId(self, odid):
-        dao = OrderDAO()
-        if not dao.getOrderById(odid):
-            return jsonify(Error="Order Not Found"), 404
-        consumer_list = dao.getConsumerByOrderId(odid)
-        result_list = []
-        for row in consumer_list:
-            result = self.build_consumer_dict(row)
-            result_list.append(result)
-        return jsonify(Order=result_list)
+        cursor = self.conn.cursor()
+        query = "select consid, consusername from consumer natural inner join orders where odid = %s;"
+        cursor.execute(query, (odid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getReservationByOrderId(self, odid):
-        dao = OrderDAO()
-        if not dao.getOrderById(odid):
-            return jsonify(Error="Order Not Found"), 404
-        reservation_list = dao.getReservationByOrderId(odid)
-        result_list = []
-        for row in reservation_list:
-            result = self.build_reservation_dict(row)
-            result_list.append(result)
-        return jsonify(Order=result_list)
+        cursor = self.conn.cursor()
+        query = "select resid, restime from reservation natural inner join orders where odid = %s;"
+        cursor.execute(query, (odid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getSupplierByOrderId(self, odid):
-        dao = OrderDAO()
-        if not dao.getOrderById(odid):
-            return jsonify(Error="Order Not Found"), 404
-        supplier_list = dao.getSupplierByOrderId(odid)
-        result_list = []
-        for row in supplier_list:
-            result = self.build_supplier_dict(row)
-            result_list.append(result)
-        return jsonify(Order=result_list)
+        cursor = self.conn.cursor()
+        query = "select sid, susername, scompany from supplier natural inner join orders where odid = %s;"
+        cursor.execute(query, (odid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
-    def insertOrderJson(self, json):
-        odnumber = json['odnumber']
-        if odnumber:
-            dao = OrderDAO()
-            odid = dao.insert(odnumber)
-            result = self.build_order_attributes(odid, odnumber)
-            return jsonify(Order=result), 201
-        else:
-            return jsonify(Error="Unexpected attributes in post request"), 400
+    def insert(self, req_id, ord_amount):
+        cursor = self.conn.cursor()
+        query = "insert into ordermake(req_id, ord_amount) values (%s, %s) returning ord_id;"
+        cursor.execute(query, (req_id, ord_amount,))
+        ord_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return ord_id
 
-    def updateOrder(self, odid, form):
-        dao = OrderDAO()
-        if not dao.getOrderById(odid):
-            return jsonify(Error="Order not found."), 404
-        else:
-            if len(form) != 1:
-                return jsonify(Error="Malformed update request"), 400
-            else:
-                odnumber = form['odnumber']
-                if odnumber:
-                    dao.update(odid, odnumber)
-                    result = self.build_order_attributes(odid, odnumber)
-                    return jsonify(Order=result), 200
-                else:
-                    return jsonify(Error="Unexpected attributes in update request"), 400
+    def update(self, odid, odnumber):
+        cursor = self.conn.cursor()
+        query = "update orders set odnumber = %s where odid = %s;"
+        cursor.execute(query, (odnumber, odid,))
+        self.conn.commit()
+        return odid
 
-    def deleteOrder(self, odid):
-        dao = OrderDAO()
-        if not dao.getOrderById(odid):
-            return jsonify(Error="Order not found."), 404
-        else:
-            dao.delete(odid)
-            return jsonify(DeleteStatus="OK"), 200
+    def delete(self, odid):
+        cursor = self.conn.cursor()
+        query = "delete from orders where odid = %s;"
+        cursor.execute(query, (odid,))
+        self.conn.commit()
+        return odid

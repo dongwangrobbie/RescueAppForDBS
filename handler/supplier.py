@@ -1,77 +1,64 @@
-from flask import jsonify
-from dao.supplier import SupplierDAO
+from config.dbconfig import pg_config
+import psycopg2
 
+# This is the way I can login to the database
+# conn = psycopg2.connect("dbname=p1 user=DongWang password=wangdong host =127.0.0.1")
 
-class SupplierHandler:
-    def build_supplier_dict(self, row):
-        result = {}
-        result['sup_id'] = row[0]
-        result['sup_name'] = row[1]
-        result['sup_phone'] = row[2]
-        result['uid'] = row[3]
-        result['created_at'] = row[4]
-        return result
-
-    def build_part_dict(self, row):
-        result = {}
-        result['resource_id'] = row[0]
-        result['res_type'] = row[1]
-        result['unit_price'] = row[2]
-        result['res_location'] = row[3]
-        result['res_aval'] = row[4]
-        return result
-
+class SupplierDAO:
+    def __init__(self):
+        connection_url = "dbname=%s user=%s password=%s host=127.0.0.1" % \
+                         (pg_config['dbname'], pg_config['user'], pg_config['passwd'])
+        self.conn = psycopg2._connect(connection_url)
 
     def getAllSuppliers(self):
-        dao = SupplierDAO()
-        suppliers_list = dao.getAllSuppliers()
-        result_list = []
-        for row in suppliers_list:
-            result = self.build_supplier_dict(row)
-            result_list.append(result)
-        return jsonify(Suppliers=result_list)
+        cursor = self.conn.cursor()
+        query = "select * from supplier;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
-    def searchSuppliers(self, args):
-        if len(args) > 1:
-            return jsonify(Error = "Malformed search string."), 400
-        else:
-            sup_name = args.get("sup_name")
-            if sup_name:
-                dao = SupplierDAO()
-                supplier_list = dao.getSuppliersByName(sup_name)
-                result_list = []
-                for row in supplier_list:
-                    result = self.build_supplier_dict(row)
-                    result_list.append(row)
-                return jsonify(Suppliers=result_list)
-            else:
-                return jsonify(Error="Malformed search string."), 400
-
-    def getPartsBySupplierId(self, sid):
-        dao = SupplierDAO()
-        if not dao.getSupplierById(sid):
-            return jsonify(Error="Supplier Not Found"), 404
-        parts_list = dao.getPartsBySupplierId(sid)
-        result_list = []
-        for row in parts_list:
-            result = self.build_part_dict(row)
-            result_list.append(result)
-        return jsonify(ResourceSupply=result_list)
+    def getSuppliersByName(self, city):
+        cursor = self.conn.cursor()
+        query = "select * from supplier where sup_name = %s;"
+        cursor.execute(query, (city,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getSupplierById(self, sid):
-        dao = SupplierDAO()
-        row = dao.getSupplierById(sid)
-        if not row:
-            return jsonify(Error="Supplier Not Found"), 404
-        else:
-            part = self.build_supplier_dict(row)
-        return jsonify(Supplier=part)
+            cursor = self.conn.cursor()
+            query = "select * from supplier where sup_id = %s;"
+            cursor.execute(query, (sid,))
+            result = cursor.fetchone()
+            return result
 
     def getLatestSupplier(self):
-        dao = SupplierDAO()
-        row = dao.getLatestSupplier()
-        if not row:
-            return jsonify(Error="Latest Supplier Not Found"), 404
-        else:
-            part = self.build_supplier_dict(row)
-        return jsonify(LatestSupplier=part)
+        cursor = self.conn.cursor()
+        query = "SELECT * FROM supplier ORDER BY created_at DESC LIMIT 1"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return result
+
+    def getPartsBySupplierId(self, sid):
+        cursor = self.conn.cursor()
+        query = "select resource.resource_id, resource.res_type, resource.unit_price, resource.res_location, res_aval " \
+                "from supplier join supplies on supplier.sup_id = supplies.sup_id " \
+                "join resource on resource.resource_id = supplies.resource_id " \
+                "where supplier.sup_id = %s;"
+        cursor.execute(query, (sid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
+
+    def insertSupplier(self, sup_name, sup_phone, uid):
+        cursor = self.conn.cursor()
+        query = "insert into supplier(sup_name, sup_phone, uid) values (%s, %s, %s) returning sup_id;"
+        cursor.execute(query, (sup_name, sup_phone, uid,))
+        sup_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return sup_id
+

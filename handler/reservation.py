@@ -1,74 +1,75 @@
-from flask import jsonify
-from dao.reservation import ReservationDAO
+# -*- coding: utf-8 -*-
+from config.dbconfig import pg_config
+import psycopg2
 
 
-class ReservationHandler:
-    def build_reservation_dict(self, row):
-        result = {}
-        result['res_id'] = row[0]
-        result['req_id'] = row[1]
-        result['created_at'] = row[2]
-        return result
+class ReservationDAO:
+    def __init__(self):
 
-    # resource_id, req_id, res_type, req_need
-    def build_reservation_requested_dict(self, row):
-        result = {}
-        result['res_id'] = row[0]
-        result['req_id'] = row[1]
-        result['res_type'] = row[2]
-        result['req_need'] = row[3]
-        return result
-
-    # resource_id, res_type, res_aval
-    def build_reservation_available_dict(self, row):
-        result = {}
-        result['resource_id'] = row[0]
-        result['res_type'] = row[1]
-        result['res_aval'] = row[2]
-        return result
+        connection_url = "dbname=%s user=%s password=%s" % (pg_config['dbname'],
+                                                            pg_config['user'],
+                                                            pg_config['passwd'])
+        self.conn = psycopg2._connect(connection_url)
 
     def getAllReservation(self):
-        dao = ReservationDAO()
-        reservation_list = dao.getAllReservation()
-        result_list = []
-        for row in reservation_list:
-            result = self.build_reservation_dict(row)
-            result_list.append(result)
-        return jsonify(Reservation=result_list)
+        cursor = self.conn.cursor()
+        query = "select * from reservation;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getReservationAvailable(self):
-        dao = ReservationDAO()
-        reservation_list = dao.getReservationAvailable()
-        result_list = []
-        for row in reservation_list:
-            result = self.build_reservation_available_dict(row)
-            result_list.append(result)
-        return jsonify(ReservationAvailalbeSorted=result_list)
+        cursor = self.conn.cursor()
+        query = "select resource_id, res_type, res_aval " \
+                "from resource where res_aval > 0 order by res_type;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
+# resource_id, req_id, res_type, req_need
     def getReservationRequested(self):
-        dao = ReservationDAO()
-        reservation_list = dao.getReservationRequested()
-        result_list = []
-        for row in reservation_list:
-            result = self.build_reservation_requested_dict(row)
-            result_list.append(result)
-        return jsonify(ReservationRequestedSorted=result_list)
+        cursor = self.conn.cursor()
+        query = "select resource_id, req_id, res_type, req_need " \
+                "from request natural inner join resource " \
+                "where request.resource_id = resource.resource_id order by res_type;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
-    def getReservationById(self, payid):
-        dao = ReservationDAO()
-        row = dao.getReservationById(payid)
-        if not row:
-            return jsonify(Error="Reservation Not Found"), 404
-        else:
-            order = self.build_reservation_dict(row)
-        return jsonify(Reservation=order)
+    def getReservationById(self, resid):
+        cursor = self.conn.cursor()
+        query = "select * from reservation where res_id = %s;"
+        cursor.execute(query, (resid,))
+        result = cursor.fetchone()
+        return result
 
     def getLatestReservation(self):
-        dao = ReservationDAO()
-        row = dao.getLatestReservation()
-        if not row:
-            return jsonify(Error="Latest Reservation Not Found"), 404
-        else:
-            part = self.build_reservation_dict(row)
-        return jsonify(LatestReservation=part)
+        cursor = self.conn.cursor()
+        query = "SELECT * FROM reservation ORDER BY created_at DESC LIMIT 1"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return result
 
+
+    def getResourcesByReservationId(self, resid):
+        cursor = self.conn.cursor()
+        query = "select rid, rname, rprice, ramount, rlocation from resources natural inner join reservations where resid = %s;"
+        cursor.execute(query, (resid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
+
+    def insert(self, req_id, res_amount):
+        cursor = self.conn.cursor()
+        query = "insert into reservation(req_id, res_amount) values (%s, %s) returning res_id;"
+        cursor.execute(query, (req_id, res_amount,))
+        res_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return res_id

@@ -1,147 +1,87 @@
-from flask import jsonify
-from dao.company import CompanyDAO
+from config.dbconfig import pg_config
+import psycopg2
 
-class CompanyHandler:
-    def build_company_dict(self, row):
-        result = {}
-        result['com_id'] = row[0]
-        result['com_name'] = row[1]
-        result['sup_id'] = row[2]
-        result['com_phone'] = row[3]
-        return result
 
-    def build_consumer_dict(self, row):
-        result = {}
-        result['consid'] = row[0]
-        result['consusername'] = row[1]
-        return result
+class CompanyDAO:
+    def __init__(self):
 
-    def build_resource_dict(self, row):
-        result = {}
-        result['rid'] = row[0]
-        result['rname'] = row[1]
-        result['rprice'] = row[2]
-        result['rlocation'] = row[3]
-        result['ramount'] = row[4]
-        return result
-
-    def build_supplier_dict(self, row):
-        result = {}
-        result['sid'] = row[0]
-        result['susername'] = row[1]
-        result['sccompany'] = row[2]
-        return result
-
-    def build_company_attributes(self, compid, compname):
-        result = {}
-        result['compid'] = compid
-        result['compname'] = compname
-        return result
+        connection_url = "dbname=%s user=%s password=%s" % (pg_config['dbname'],
+                                                            pg_config['user'],
+                                                            pg_config['passwd'])
+        self.conn = psycopg2._connect(connection_url)
 
     def getAllCompany(self):
-        dao = CompanyDAO()
-        company_list = dao.getAllCompany()
-        result_list = []
-        for row in company_list:
-            result = self.build_company_dict(row)
-            result_list.append(result)
-        return jsonify(Company=result_list)
+        cursor = self.conn.cursor()
+        query = "select * from company;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
-    def getCompanyById(self, comid):
-        dao = CompanyDAO()
-        row = dao.getCompanyById(comid)
-        if not row:
-            return jsonify(Error="Company Not Found"), 404
-        else:
-            company = self.build_company_dict(row)
-        return jsonify(Company=company)
-
-    def searchCompanies(self, args):
-        compname = args.get('compname')
-        dao = CompanyDAO()
-        company_list = []
-        if (len(args) == 1) and compname:
-            company_list = dao.getCompanyByCompname(compname)
-        else:
-            return jsonify(Error="Malformed query string"), 400
-        result_list = []
-        for row in company_list:
-            result = self.build_company_dict(row)
-            result_list.append(result)
-        return jsonify(Company=result_list)
+    def getCompanyById(self, compid):
+        cursor = self.conn.cursor()
+        query = "select * from company where com_id = %s;"
+        cursor.execute(query, (compid,))
+        result = cursor.fetchone()
+        return result
 
     def getCompanyByCompname(self, compname):
-        dao = CompanyDAO()
-        row = dao.getCompanyByCompname(compname)
-        if not row:
-            return jsonify(Error="Company Not Found"), 404
-        else:
-            company = self.build_company_dict(row)
-            return jsonify(Company=company)
+        cursor = self.conn.cursor()
+        query = "select * from company where compname = %s;"
+        cursor.execute(query, (compname,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getConsumerByCompanyId(self, compid):
-        dao = CompanyDAO()
-        if not dao.getCompanyById(compid):
-            return jsonify(Error="Company Not Found"), 404
-        consumers_list = dao.getConsumerByCompanyId(compid)
-        result_list = []
-        for row in consumers_list:
-            result = self.build_consumer_dict(row)
-            result_list.append(result)
-        return jsonify(Company=result_list)
+        cursor = self.conn.cursor()
+        query = "select consid, consusername from consumer natural inner join company where compid = %s;"
+        cursor.execute(query, (compid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getResourcesByCompanyId(self, compid):
-        dao = CompanyDAO()
-        if not dao.getCompanyById(compid):
-            return jsonify(Error="Company Not Found"), 404
-        resources_list = dao.getResourcesByCompanyId(compid)
-        result_list = []
-        for row in resources_list:
-            result = self.build_resource_dict(row)
-            result_list.append(result)
-        return jsonify(Company=result_list)
+        cursor = self.conn.cursor()
+        query = "select rid, rname, rprice, ramount, rlocation from resources natural inner join company where compid = %s;"
+        cursor.execute(query, (compid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getSupplierByCompanyId(self, compid):
-        dao = CompanyDAO()
-        if not dao.getCompanyById(compid):
-            return jsonify(Error="Company Not Found"), 404
-        suppliers_list = dao.getSupplierByCompanyId(compid)
-        result_list = []
-        for row in suppliers_list:
-            result = self.build_supplier_dict(row)
-            result_list.append(result)
-        return jsonify(Company=result_list)
+        cursor = self.conn.cursor()
+        query = "select sid, susername, scompany from supplier natural inner join company where compid = %s;"
+        cursor.execute(query, (compid,))
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
-    def insertCompanyJson(self, json):
-        compname = json['compname']
-        if compname:
-            dao = CompanyDAO()
-            compid = dao.insert(compname)
-            result = self.build_company_attributes(compid, compname)
-            return jsonify(Company=result), 201
-        else:
-            return jsonify(Error="Unexpected attributes in post request"), 400
+    ############ phase 3 ################################
 
-    def updateCompany(self, compid, form):
-        dao = CompanyDAO()
-        if not dao.getCompanyById(compid):
-            return jsonify(Error="Company not found."), 404
-        else:
-            if len(form) != 1:
-                return jsonify(Error="Malformed update request"), 400
-            else:
-                compname = form['compname']
-                if compname:
-                    dao.update(compid, compname)
-                    result = self.build_company_attributes(compid, compname)
-                    return jsonify(Company=result), 200
-                else:
-                    return jsonify(Error="Unexpected attributes in update request"), 400
+    def insert(self, com_name, sup_id, com_phone):
+        cursor = self.conn.cursor()
+        query = "insert into company(com_name, sup_id, com_phone) values (%s, %s, %s) returning com_id;"
+        cursor.execute(query, (com_name, sup_id, com_phone,))
+        com_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return com_id
 
-    def deleteCompany(self, compid):
-        dao = CompanyDAO()
-        if not dao.getCompanyById(compid):
-            return jsonify(Error="Company not found."), 404
-        else:
-            dao.delete(compid)
-            return jsonify(DeleteStatus="OK"), 200
+    def update(self, compid, compname):
+        cursor = self.conn.cursor()
+        query = "update company set compname = %s where compid = %s;"
+        cursor.execute(query, (compname, compid,))
+        self.conn.commit()
+        return compid
+
+    def delete(self, compid):
+        cursor = self.conn.cursor()
+        query = "delete from company where compid = %s;"
+        cursor.execute(query, (compid,))
+        self.conn.commit()
+        return compid

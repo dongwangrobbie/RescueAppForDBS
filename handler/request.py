@@ -1,41 +1,35 @@
-from flask import jsonify
-from dao.request import RequestDAO
+# -*- coding: utf-8 -*-
+from config.dbconfig import pg_config
+import psycopg2
 
 
-class RequestHandler:
-    def build_request_dict(self, row):
-        result = {}
-        result['req_id'] = row[0]
-        result['consumer_id'] = row[1]
-        result['resource_id'] = row[2]
-        result['req_need'] = row[3]
-        result['created_at'] = row[4]
-        return result
+class RequestDAO:
+    def __init__(self):
 
+        connection_url = "dbname=%s user=%s password=%s" % (pg_config['dbname'],
+                                                            pg_config['user'],
+                                                            pg_config['passwd'])
+        self.conn = psycopg2._connect(connection_url)
 
     def getAllRequest(self):
-        dao = RequestDAO()
-        request_list = dao.getAllRequest()
-        result_list = []
-        for row in request_list:
-            result = self.build_request_dict(row)
-            result_list.append(result)
-        return jsonify(Request=result_list)
+        cursor = self.conn.cursor()
+        query = "select * from request;"
+        cursor.execute(query)
+        result = []
+        for row in cursor:
+            result.append(row)
+        return result
 
     def getRequestById(self, reqid):
-        dao = RequestDAO()
-        row = dao.getRequestById(reqid)
-        if not row:
-            return jsonify(Error="Reservation Not Found"), 404
-        else:
-            order = self.build_request_dict(row)
-        return jsonify(Request=order)
+        cursor = self.conn.cursor()
+        query = "select * from request where req_id = %s;"
+        cursor.execute(query, (reqid,))
+        result = cursor.fetchone()
+        return result
 
     def getLatestRequest(self):
-        dao = RequestDAO()
-        row = dao.getLatestRequest()
-        if not row:
-            return jsonify(Error="Latest Request Not Found"), 404
-        else:
-            part = self.build_request_dict(row)
-        return jsonify(LatestRequest=part)
+        cursor = self.conn.cursor()
+        query = "SELECT * FROM request ORDER BY created_at DESC LIMIT 1"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return result

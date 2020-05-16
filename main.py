@@ -30,7 +30,7 @@ def home():
 def getAllResource():
     if request.method == 'POST':
         print("REQUEST: ", request.json)
-        # return PartHandler().insertPartJson(request.json)
+        return ResourceHandler().insertResource(request.json)
     else:
         if not request.args:
             return ResourceHandler().getAllResource()
@@ -72,12 +72,13 @@ def getResourceByIdRegion(pid):
 @app.route('/RescueApp/supplier', methods=['GET', 'POST'])
 def getAllSuppliers():
     if request.method == 'POST':
-        return SupplierHandler().insertSupplier(request.form)
+        print("Request: ", request.json)
+        return SupplierHandler().insertSupplier(request.json)
     else:
         if not request.args:
             return SupplierHandler().getAllSuppliers()
         else:
-            return SupplierHandler().searchSuppliers(request.args)
+            return SupplierHandler().searchSuppliers(request.json)
 
 @app.route('/RescueApp/supplier/<int:sid>', methods=['GET', 'PUT', 'DELETE'])
 def getSupplierById(sid):
@@ -113,12 +114,12 @@ def getResourceBySuplierId(sid):
 @app.route('/RescueApp/consumer', methods=['GET', 'POST'])
 def getALLConsumers():
     if request.method == 'POST':
-        return ConsumerHandler().insertConsumer(request.form)
+        return ConsumerHandler().insertConsumer(request.json)
     else:
-        if not request.args:
+        if not request.json:
             return ConsumerHandler().getAllConsumers()
         else:
-            return ConsumerHandler().searchConsumers(request.args)
+            return ConsumerHandler().searchConsumers(request.json)
 
 @app.route('/RescueApp/consumer/<int:cid>', methods=['GET', 'PUT', 'DELETE'])
 def getConsumerById(cid):
@@ -141,12 +142,13 @@ def getLatestConsumer():
 @app.route('/RescueApp/administrator', methods=['GET', 'POST'])
 def getALLAdministrator():
     if request.method == 'POST':
-        return AdministratorHandler().insertAdministrator(request.form)
+        print("Request: ", request.json)
+        return AdministratorHandler().insertAdministrator(request.json)
     else:
         if not request.args:
             return AdministratorHandler().getAllAdministrators()
         else:
-            return AdministratorHandler().searchAdministrator(request.args)
+            return AdministratorHandler().searchAdministrator(request.json)
 
 @app.route('/RescueApp/administrator/<int:adid>', methods=['GET', 'PUT', 'DELETE'])
 def getAdministratorById(adid):
@@ -285,8 +287,8 @@ def getSupplierByPayMethodId(pmid):
 @app.route('/RescueApp/reservation', methods=['GET', 'POST'])
 def getAllReservations():
     if request.method == 'POST':
-        # return print("REQUEST: ", request.json)
-        return ReservationHandler().insertReservationsJson(request.json)
+        print("REQUEST: ", request.json)
+        return ReservationHandler().insertReservation(request.json)
     else:
         if not request.args:
             return ReservationHandler().getAllReservation()
@@ -332,7 +334,7 @@ def getReservationAvailable():
 def getAllOrder():
     if request.method == 'POST':
         print("REQUEST: ", request.json)
-        return OrderHandler().insertOrderJson(request.json)
+        return OrderHandler().insertOrder(request.json)
     else:
         if not request.args:
             return OrderHandler().getAllOrder()

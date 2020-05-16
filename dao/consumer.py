@@ -50,3 +50,11 @@ class ConsumerDAO:
         result = cursor.fetchone()
         return result
 
+    def insertConsumer(self, uid, first_name, last_name, address, phone):
+        cursor = self.conn.cursor()
+        query = "insert into consumer(uid, first_name, last_name, address, phone) values (%s, %s, %s, %s, %s) returning consumer_id;"
+        cursor.execute(query, (uid, first_name, last_name, address, phone,))
+        consumer_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return consumer_id
+

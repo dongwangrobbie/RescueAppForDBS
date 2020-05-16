@@ -66,10 +66,10 @@ class ReservationDAO:
             result.append(row)
         return result
 
-    def insert(self, restime):
+    def insert(self, req_id, res_amount):
         cursor = self.conn.cursor()
-        query = "insert into reservation(restime) values (%s) returning resid;"
-        cursor.execute(query, (restime))
-        resid = cursor.fetchone()[0]
+        query = "insert into reservation(req_id, res_amount) values (%s, %s) returning res_id;"
+        cursor.execute(query, (req_id, res_amount,))
+        res_id = cursor.fetchone()[0]
         self.conn.commit()
-        return resid
+        return res_id

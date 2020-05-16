@@ -62,13 +62,15 @@ class CompanyDAO:
             result.append(row)
         return result
 
-    def insert(self, compname):
+    ############ phase 3 ################################
+
+    def insert(self, com_name, sup_id, com_phone):
         cursor = self.conn.cursor()
-        query = "insert into company(compname) values (%s) returning compid;"
-        cursor.execute(query, (compname,))
-        compid = cursor.fetchone()[0]
+        query = "insert into company(com_name, sup_id, com_phone) values (%s, %s, %s) returning com_id;"
+        cursor.execute(query, (com_name, sup_id, com_phone,))
+        com_id = cursor.fetchone()[0]
         self.conn.commit()
-        return compid
+        return com_id
 
     def update(self, compid, compname):
         cursor = self.conn.cursor()

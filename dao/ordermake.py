@@ -69,13 +69,13 @@ class OrderDAO:
             result.append(row)
         return result
 
-    def insert(self, odnumber):
+    def insert(self, req_id, ord_amount):
         cursor = self.conn.cursor()
-        query = "insert into orders(odnumber) values (%s) returning odid;"
-        cursor.execute(query, (odnumber,))
-        odid = cursor.fetchone()[0]
+        query = "insert into ordermake(req_id, ord_amount) values (%s, %s) returning ord_id;"
+        cursor.execute(query, (req_id, ord_amount,))
+        ord_id = cursor.fetchone()[0]
         self.conn.commit()
-        return odid
+        return ord_id
 
     def update(self, odid, odnumber):
         cursor = self.conn.cursor()

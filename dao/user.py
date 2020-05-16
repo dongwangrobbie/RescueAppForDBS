@@ -81,10 +81,10 @@ class UserDAO:
             result.append(row)
         return result
 
-    def insert(self, ufirstname, ulastname):
+    def insertUser(self, type, name, pw):
         cursor = self.conn.cursor()
-        query = "insert into user(ufirstname, ulastname) values (%s, %s) returning uid;"
-        cursor.execute(query, (ufirstname, ulastname))
+        query = "insert into appuser(appuser_type, user_name, user_pw) values (%s, %s, %s) returning appuser_id;"
+        cursor.execute(query, (type, name, pw,))
         uid = cursor.fetchone()[0]
         self.conn.commit()
         return uid

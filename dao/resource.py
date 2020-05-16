@@ -62,5 +62,16 @@ class ResourceDAO:
             result.append(row)
         return result
 
+    def insert(self, res_type, res_price, res_loc, res_aval, res_info, res_free):
+        cursor = self.conn.cursor()
+        query = "insert into resource(res_type, res_price, res_loc, res_aval, res_info, res_free)" \
+                " values (%s, %s, %s, %s, %s, %s) returning resource_id;"
+        cursor.execute(query, (res_type, res_price, res_loc, res_aval, res_info, res_free,))
+        resource_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return resource_id
+
+
+
 
 

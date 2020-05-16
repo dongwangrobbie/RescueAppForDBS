@@ -53,13 +53,14 @@ class PayMethodDAO:
             result.append(row)
         return result
 
-    def insert(self, pmname):
+    def insert(self, card_no, first_name, last_name, exp_date, consumer_id):
         cursor = self.conn.cursor()
-        query = "insert into pay_method(pmname) values (%s) returning pmid;"
-        cursor.execute(query, (pmname,))
-        pmid = cursor.fetchone()[0]
+        query = "insert into paymethod(card_no, first_name, last_name, exp_date, consumer_id) " \
+                "values (%s, %s, %s, %s, %s) returning pay_id;"
+        cursor.execute(query, (card_no, first_name, last_name, exp_date, consumer_id,))
+        pay_id = cursor.fetchone()[0]
         self.conn.commit()
-        return pmid
+        return pay_id
 
     def update(self, pmid, pmname):
         cursor = self.conn.cursor()

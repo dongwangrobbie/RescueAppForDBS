@@ -19,15 +19,6 @@ class AdministratorDAO:
             result.append(row)
         return result
 
-    def insertAdministrator(self, uid, category, first_name, last_name, payment_method, address, phone):
-        cursor = self.conn.cursor()
-        query = "insert into consumer(uid, category, first_name, last_name, payment_method, address, phone) values (%s, %s, %s, %s, %s, %s, %s) returning sid;"
-        cursor.execute(query, (uid, category, first_name, last_name, payment_method, address, phone))
-        sid = cursor.fetchone()[0]
-        self.conn.commit()
-        return sid
-
-
 
     def getAdministratorById(self, adid):
         cursor = self.conn.cursor()
@@ -42,3 +33,28 @@ class AdministratorDAO:
         cursor.execute(query)
         result = cursor.fetchone()
         return result
+
+    ############## Phase 3 ######################
+
+    def insertAdmin(self, uid, admin_name):
+        cursor = self.conn.cursor()
+        query = "insert into administrator(uid, admin_name) values (%s, %s) returning admin_id;"
+        cursor.execute(query, (uid, admin_name,))
+        admin_id = cursor.fetchone()[0]
+        self.conn.commit()
+        return admin_id
+
+    def update(self, said, uid, sausername):
+        cursor = self.conn.cursor()
+        query = "update sys_adm set uid = %s, sausername = %s where said = %s;"
+        cursor.execute(query, (uid, sausername, said,))
+        self.conn.commit()
+        return said
+
+    def delete(self, said):
+        cursor = self.conn.cursor()
+        query = "delete from sys_adm where said = %s;"
+        cursor.execute(query, (said,))
+        self.conn.commit()
+        return said
+
